@@ -1,0 +1,101 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: nyc_user
+      POSTGRES_PASSWORD: nyc_pass
+      POSTGRES_DB: nyc_dwh
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@nyc.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://nyc_user:nyc_pass@postgres:5432/nyc_dwh
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    entrypoint: >
+      bash -c "
+      airflow db init &&
+      airflow users create --username nyc_admin --password nyc_admin_pass --firstname NYC --lastname Admin --role Admin --email admin@nyc.dev
+      "
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: custom-airflow-spark:latest
+    container_name: airflow-webserver
+    hostname: airflow-webserver
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://nyc_user:nyc_pass@postgres:5432/nyc_dwh
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "super_secret_key_ultra_unique"
+      AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8080
+      AIRFLOW__LOGGING__REMOTE_LOGGING: "False"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+      - ./spark_jobs:/opt/airflow/spark_jobs
+      - ./jars:/opt/airflow/jars
+      - ./dbt_project:/opt/airflow/dbt_project
+      - ./dbt_project/profiles.yml:/home/airflow/.dbt/profiles.yml
+    command: >
+      bash -c "airflow webserver"
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: custom-airflow-spark:latest
+    container_name: airflow-scheduler
+    hostname: airflow-scheduler
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://nyc_user:nyc_pass@postgres:5432/nyc_dwh
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "super_secret_key_ultra_unique"
+      AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8080
+      AIRFLOW__LOGGING__REMOTE_LOGGING: "False"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./plugins:/opt/airflow/plugins
+      - ./spark_jobs:/opt/airflow/spark_jobs
+      - ./jars:/opt/airflow/jars
+      - ./data:/opt/airflow/data
+      - ./dbt_project:/opt/airflow/dbt_project
+      - ./dbt_project/profiles.yml:/home/airflow/.dbt/profiles.yml
+    command: >
+      bash -c "airflow scheduler"
+
+volumes:
+  postgres_data:
