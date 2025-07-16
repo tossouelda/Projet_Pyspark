@@ -1,0 +1,13 @@
+
+nyc_profile:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: postgres
+      user: nyc_user
+      password: nyc_pass
+      dbname: nyc_dwh
+      schema: public
+      port: 5432
+      threads: 1

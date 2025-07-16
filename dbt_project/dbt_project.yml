@@ -1,0 +1,20 @@
+name: "nyc_mobility_project"
+version: "1.0"
+config-version: 2
+
+profile: "nyc_profile"
+
+source-paths: ["models"]
+analysis-paths: ["analysis"]
+test-paths: ["tests"]
+data-paths: ["data"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_modules"]
+
+models:
+  nyc_mobility_project:
+    staging:
+      materialized: view
+    marts:
+      materialized: table

@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: nyc
+    database: nyc_dwh
+    schema: public
+    tables:
+      - name: fact_taxi_trips
+      - name: dim_weather
